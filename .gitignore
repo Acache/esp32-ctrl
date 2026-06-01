@@ -1,0 +1,18 @@
+# 嵌套 git 仓库（外部引用）
+_lv_sim/
+_waveshare_examples/
+simulator/lv_port_pc_vscode/
+
+# 构建产物
+*.o
+*.d
+build/
+cmake-build-*/
+
+# macOS
+.DS_Store
+
+# 图片资源（太大）
+*.png
+*.jpg
+*.bmp
