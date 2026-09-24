@@ -49,7 +49,14 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
   const int offsety2 = area->y2;
 
   esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_p);
-  lv_disp_flush_ready(disp);
+}
+
+/* A draw buffer belongs to DMA until its transfer completes. */
+static bool display_transfer_done(esp_lcd_panel_io_handle_t io,
+                                  esp_lcd_panel_io_event_data_t *event, void *context) {
+  (void)io; (void)event;
+  lv_disp_flush_ready((lv_disp_drv_t *)context);
+  return false;
 }
 
 void my_disp_rounder(struct _lv_disp_drv_t *disp_drv, lv_area_t *area) {
@@ -144,8 +151,8 @@ void bsp_lvgl_init(I2cMasterBus &i2cbus) {
   io_config.spi_mode = 0;
   io_config.pclk_hz = 40 * 1000 * 1000;
   io_config.trans_queue_depth = 2;
-  io_config.on_color_trans_done = NULL;
-  io_config.user_ctx = NULL;
+  io_config.on_color_trans_done = display_transfer_done;
+  io_config.user_ctx = &disp_drv;
   io_config.lcd_cmd_bits = 32;
   io_config.lcd_param_bits = 8;
   io_config.flags.quad_mode = true;
@@ -165,12 +172,6 @@ void bsp_lvgl_init(I2cMasterBus &i2cbus) {
   ESP_ERROR_CHECK(esp_lcd_new_panel_sh8601(io_handle, &panel_config, &panel_handle));
   ESP_ERROR_CHECK(DisplayPort_DispReset());
   ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-  uint16_t *buf = (uint16_t *)heap_caps_malloc(BSP_LCD_H_RES * 50 * 2, MALLOC_CAP_DMA);
-  assert(buf);
-  for (int i = 0; i < BSP_LCD_H_RES * 50; i++) {
-    buf[i] = 0xffff;
-  }
-  esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, BSP_LCD_H_RES, 50, buf);
   /*LVGL INIT*/
   lv_init();
   lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(BSP_LCD_H_RES * 50 * sizeof(lv_color_t), MALLOC_CAP_DMA);

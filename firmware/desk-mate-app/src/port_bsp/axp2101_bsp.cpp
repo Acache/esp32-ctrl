@@ -95,10 +95,35 @@ void Axp2101_SetAldo3(uint8_t vol) {
   }
 }
 
+void PMU_EnableButton(void) {
+  axp2101.clearIrqStatus();
+  axp2101.enableIRQ(XPOWERS_AXP2101_PKEY_SHORT_IRQ);
+}
+
+bool PMU_TakeShortPress(void) {
+  axp2101.getIrqStatus();
+  bool pressed = axp2101.isPekeyShortPressIrq();
+  axp2101.clearIrqStatus();
+  return pressed;
+}
+
 void Axp2101_SetAldo2(uint8_t vol) {
   if(vol) {
     axp2101.enableALDO2();
   } else {
     axp2101.disableALDO2();
   }
+}
+
+/* 返回电池百分比 0-100，<0 表示读取失败
+ * 硬件：调 AXP2101 getBatteryPercent()，失败时回返 -1
+ * 模拟器：走 stub（在 ui_pages.h 里，编译时 LV_USE_SDL 已定义） */
+int PMU_GetBatteryPercent(void) {
+#ifdef XPOWERS_CHIP_AXP2101
+  int pct = axp2101.getBatteryPercent();
+  if (pct < 0 || pct > 100) return -1;
+  return pct;
+#else
+  return 85;   /* stub（实际不会被调用，ui_pages.h 已有同名 stub） */
+#endif
 }
