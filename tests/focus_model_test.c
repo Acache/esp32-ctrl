@@ -18,8 +18,12 @@ int main(void) {
     focus_reset(&t);
     focus_adjust(&t, -100);
     assert(t.duration_ms == 60000);
+    focus_adjust(&t, 1);
+    assert(t.duration_ms == 120000); /* one click is always one minute */
     focus_adjust(&t, 200);
     assert(t.duration_ms == 90u * 60000);
+    focus_set_minutes(&t, 15);
+    assert(t.duration_ms == 15u * 60000 && t.remaining_ms == t.duration_ms);
     focus_adjust(&t, -89);
     focus_toggle(&t, 0xffffff00u);
     focus_update(&t, 744u);

@@ -15,7 +15,7 @@ static lv_obj_t *focus_pager, *focus_pages[2], *focus_arcs[2];
 static lv_obj_t *focus_digits, *focus_caption, *focus_primary_text;
 static lv_obj_t *focus_mac_title, *focus_mac_status, *focus_mac_hint;
 static lv_obj_t *focus_mac_mode, *focus_mac_left, *focus_mac_right;
-static lv_obj_t *focus_dots[2], *focus_timer_hint, *focus_battery;
+static lv_obj_t *focus_dots[2], *focus_battery;
 static int focus_page = 0;
 static bool focus_connected = false, focus_volume = false;
 static uint32_t focus_feedback_until = 0, focus_dots_until = 0;
@@ -24,6 +24,8 @@ static uint32_t focus_last_seconds = UINT32_MAX;
 static bool focus_last_running = false, focus_last_finished = false;
 static const uint32_t FOCUS_INK = 0xF3EFE7, FOCUS_MUTED = 0x858883;
 static const uint32_t FOCUS_AMBER = 0xE8B66D, FOCUS_BLUE = 0x8CBCE5;
+static bool focus_touch_repeated = false;
+static unsigned focus_touch_repeat_count = 0;
 
 static void focus_refresh(void);
 static void focus_action(int action);
@@ -46,8 +48,25 @@ static lv_obj_t *focus_label(lv_obj_t *p, const char *s, int y,
     lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
     return o;
 }
-static void focus_clicked(lv_event_t *e) {
-    focus_action((int)(intptr_t)lv_event_get_user_data(e));
+static void focus_button_event(lv_event_t *e) {
+    int action = (int)(intptr_t)lv_event_get_user_data(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESSED) {
+        focus_touch_repeated = false;
+        focus_touch_repeat_count = 0;
+    } else if ((code == LV_EVENT_LONG_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT) &&
+               focus_page == 0 && (action == -1 || action == 1)) {
+        unsigned amount = focus_touch_repeat_count >= 18 ? 5 :
+                          focus_touch_repeat_count >= 7 ? 2 : 1;
+        focus_adjust(&focus_timer, action * (int)amount);
+        focus_touch_repeat_count++;
+        focus_touch_repeated = true;
+        focus_refresh();
+    } else if (code == LV_EVENT_CLICKED) {
+        if (!focus_touch_repeated) focus_action(action);
+    } else if (code == LV_EVENT_PRESS_LOST) {
+        focus_touch_repeated = false;
+    }
 }
 static lv_obj_t *focus_button(lv_obj_t *p, const char *s, int x, int y,
                               int w, int h, uint32_t color, int action) {
@@ -57,20 +76,20 @@ static lv_obj_t *focus_button(lv_obj_t *p, const char *s, int x, int y,
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(b, lv_color_hex(0x2A2E30), LV_STATE_PRESSED);
     lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(b, focus_clicked, LV_EVENT_CLICKED, (void *)(intptr_t)action);
+    lv_obj_add_event_cb(b, focus_button_event, LV_EVENT_ALL, (void *)(intptr_t)action);
     lv_obj_t *l = lv_label_create(b);
     lv_label_set_text(l, s);
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_24, 0);
     lv_obj_center(l);
     lv_obj_clear_flag(l, LV_OBJ_FLAG_CLICKABLE);
     return l;
 }
-static lv_obj_t *focus_arc(lv_obj_t *p, int diameter, int width, bool background) {
+static lv_obj_t *focus_arc(lv_obj_t *p, int x, int y, int diameter, int width, bool background) {
     lv_obj_t *a = lv_arc_create(p);
     lv_obj_remove_style_all(a);
     lv_obj_set_size(a, diameter, diameter);
-    lv_obj_center(a);
+    lv_obj_set_pos(a, x, y);
     lv_arc_set_rotation(a, 270);
     lv_arc_set_bg_angles(a, 0, 360);
     lv_arc_set_range(a, 0, 1000);
@@ -113,13 +132,10 @@ static void focus_action(int action) {
         focus_feedback_until = 0;
     } else if (focus_page == 0) {
         if (action == 0) focus_toggle(&focus_timer, now);
-        else if (action == -1 || action == 1) focus_adjust(&focus_timer, action * 5);
-        else if (action == 6 && !focus_timer.running &&
-                 focus_timer.remaining_ms == focus_timer.duration_ms) {
-            int minutes = focus_timer.duration_ms / 60000;
-            int next = minutes == 25 ? 5 : minutes == 5 ? 50 : 25;
-            focus_adjust(&focus_timer, next - minutes);
-        }
+        else if (action == -1 || action == 1) focus_adjust(&focus_timer, action);
+        else if (action == 105) focus_set_minutes(&focus_timer, 5);
+        else if (action == 115) focus_set_minutes(&focus_timer, 15);
+        else if (action == 125) focus_set_minutes(&focus_timer, 25);
     } else if (action >= -1 && action <= 1) {
         uint16_t usage = action == 0 ? (focus_volume ? 0xE2 : 0xCD) :
             action < 0 ? (focus_volume ? 0xEA : 0xB6) : (focus_volume ? 0xE9 : 0xB5);
@@ -152,12 +168,9 @@ static void focus_refresh(void) {
         lv_label_set_text(focus_digits, digits);
         lv_label_set_text(focus_caption, focus_timer.finished ? "SESSION COMPLETE" :
             focus_timer.running ? "ONE THING AT A TIME" :
-            focus_timer.remaining_ms != focus_timer.duration_ms ? "TAKE YOUR TIME" : "MAKE A LITTLE SPACE");
+            focus_timer.remaining_ms != focus_timer.duration_ms ? "TAKE YOUR TIME" : "1 MIN / HOLD TO SPEED UP");
         lv_label_set_text(focus_primary_text, focus_timer.running ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
         lv_obj_center(focus_primary_text);
-        lv_label_set_text(focus_timer_hint, focus_timer.finished ? "Well done. Start again when ready." :
-            focus_timer.running ? "Hold KEY to reset" :
-            focus_timer.remaining_ms != focus_timer.duration_ms ? "Paused  /  hold KEY to reset" : "BOOT  -5 min     KEY  +5 min");
         focus_last_seconds = seconds; focus_last_running = focus_timer.running;
         focus_last_finished = focus_timer.finished;
         int progress = (int)((uint64_t)focus_timer.remaining_ms * 1000 / focus_timer.duration_ms);
@@ -206,28 +219,29 @@ static void focus_ui_build(lv_obj_t *screen, FocusSendMedia send_media,
         lv_obj_set_style_bg_opa(focus_pages[i], LV_OPA_COVER, 0);
     }
     lv_obj_t *p = focus_pages[0];
-    focus_arcs[0] = focus_arc(p, 346, 3, true);
-    focus_label(p, "F O C U S", 100, &lv_font_montserrat_16, FOCUS_AMBER);
-    focus_caption = focus_label(p, "", 142, &lv_font_montserrat_12, FOCUS_MUTED);
-    focus_digits = focus_label(p, "25:00", 187, &lv_font_montserrat_48, FOCUS_INK);
+    focus_arcs[0] = focus_arc(p, 105, 45, 270, 4, true);
+    focus_label(p, "F O C U S", 88, &lv_font_montserrat_20, FOCUS_AMBER);
+    focus_caption = focus_label(p, "", 132, &lv_font_montserrat_14, FOCUS_MUTED);
+    focus_digits = focus_label(p, "25:00", 181, &lv_font_montserrat_48, FOCUS_INK);
     lv_obj_set_style_text_letter_space(focus_digits, 3, 0);
-    focus_button(p, "-", 84, 271, 72, 72, FOCUS_MUTED, -1);
-    focus_primary_text = focus_button(p, LV_SYMBOL_PLAY, 196, 263, 88, 88, FOCUS_AMBER, 0);
-    focus_button(p, "+", 324, 271, 72, 72, FOCUS_MUTED, 1);
-    focus_button(p, "5 / 25 / 50", 145, 364, 190, 44, FOCUS_MUTED, 6);
-    focus_timer_hint = focus_label(p, "", 418, &lv_font_montserrat_12, FOCUS_MUTED);
+    focus_button(p, "-", 48, 324, 88, 88, FOCUS_MUTED, -1);
+    focus_primary_text = focus_button(p, LV_SYMBOL_PLAY, 188, 316, 104, 104, FOCUS_AMBER, 0);
+    focus_button(p, "+", 344, 324, 88, 88, FOCUS_MUTED, 1);
+    focus_button(p, "5", 91, 425, 82, 44, FOCUS_AMBER, 105);
+    focus_button(p, "15", 199, 425, 82, 44, FOCUS_AMBER, 115);
+    focus_button(p, "25", 307, 425, 82, 44, FOCUS_AMBER, 125);
     p = focus_pages[1];
-    focus_arcs[1] = focus_arc(p, 462, 2, false);
-    focus_label(p, "M A C  C O N T R O L", 89, &lv_font_montserrat_16, FOCUS_BLUE);
+    focus_arcs[1] = focus_arc(p, 9, 9, 462, 2, false);
+    focus_label(p, "M A C  C O N T R O L", 86, &lv_font_montserrat_20, FOCUS_BLUE);
     focus_mac_title = focus_label(p, "Hello, Mac.", 154, &lv_font_montserrat_48, FOCUS_INK);
-    focus_mac_status = focus_label(p, "", 222, &lv_font_montserrat_12, FOCUS_BLUE);
-    focus_mac_left = focus_button(p, LV_SYMBOL_PREV, 74, 263, 84, 84, FOCUS_BLUE, -1);
-    focus_button(p, LV_SYMBOL_PLAY " / " LV_SYMBOL_PAUSE, 181, 259, 118, 92, FOCUS_BLUE, 0);
-    focus_mac_right = focus_button(p, LV_SYMBOL_NEXT, 322, 263, 84, 84, FOCUS_BLUE, 1);
-    focus_mac_mode = focus_button(p, "MUSIC  /  switch", 105, 369, 270, 48, FOCUS_MUTED, 5);
-    focus_mac_hint = focus_label(p, "", 428, &lv_font_montserrat_12, FOCUS_MUTED);
+    focus_mac_status = focus_label(p, "", 222, &lv_font_montserrat_14, FOCUS_BLUE);
+    focus_mac_left = focus_button(p, LV_SYMBOL_PREV, 58, 258, 92, 92, FOCUS_BLUE, -1);
+    focus_button(p, LV_SYMBOL_PLAY " / " LV_SYMBOL_PAUSE, 175, 252, 130, 104, FOCUS_BLUE, 0);
+    focus_mac_right = focus_button(p, LV_SYMBOL_NEXT, 330, 258, 92, 92, FOCUS_BLUE, 1);
+    focus_mac_mode = focus_button(p, "MUSIC  /  switch", 95, 371, 290, 54, FOCUS_MUTED, 5);
+    focus_mac_hint = focus_label(p, "", 435, &lv_font_montserrat_14, FOCUS_MUTED);
     for (int i = 0; i < 2; ++i) {
-        focus_dots[i] = focus_object(screen, 226 + i * 20, 454, 7, 7);
+        focus_dots[i] = focus_object(screen, 226 + i * 20, 24, 7, 7);
         lv_obj_set_style_radius(focus_dots[i], 4, 0);
         lv_obj_set_style_bg_opa(focus_dots[i], LV_OPA_COVER, 0);
         lv_obj_clear_flag(focus_dots[i], LV_OBJ_FLAG_CLICKABLE);

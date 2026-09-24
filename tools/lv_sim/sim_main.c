@@ -59,12 +59,12 @@ static void run_tests(void) {
     drag(300, 40, 240, 20); expect_page(1);
     drag(40, 420, 240, 25); expect_page(0);
     drag(100, 380, 240, 20); expect_page(0);
-    drag(242, 8, 300, 12); /* Swiping Play must not activate it. */
+    drag(242, 8, 368, 12); /* Swiping Play must not activate it. */
     assert(!focus_timer.running);
     int page = lv_obj_get_scroll_x(focus_pager) / 480;
     assert(page == 0 || page == 1); expect_page(page);
     focus_go_page(0, false); advance(100);
-    pointer(240, 300, true, 80); pointer(240, 300, false, 100);
+    pointer(240, 368, true, 80); pointer(240, 368, false, 100);
     assert(focus_timer.running);
     advance(1000);
     assert(focus_timer.remaining_ms < focus_timer.duration_ms);
@@ -90,6 +90,11 @@ static void run_tests(void) {
     pointer(170, 240, true, 40); pointer(90, 240, false, 1400);
     expect_page(1);
     focus_go_page(0, false); advance(100);
+    focus_reset(&focus_timer);
+    pointer(388, 368, true, 2500); pointer(388, 368, false, 100);
+    assert(focus_timer.duration_ms >= 35u * 60000u); /* accelerated hold */
+    pointer(240, 447, true, 80); pointer(240, 447, false, 100);
+    assert(focus_timer.duration_ms == 15u * 60000u); /* direct preset */
     focus_reset(&focus_timer); focus_timer.remaining_ms = 50;
     focus_timer.running = true; focus_timer.last_ms = sim_tick;
     advance(200);

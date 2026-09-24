@@ -39,4 +39,11 @@ static inline void focus_adjust(FocusTimer *t, int minutes) {
     if (next > 90) next = 90;
     t->duration_ms = t->remaining_ms = (uint32_t)next * 60000;
 }
+static inline void focus_set_minutes(FocusTimer *t, int minutes) {
+    if (t->running) return;
+    if (minutes < 1) minutes = 1;
+    if (minutes > 90) minutes = 90;
+    t->duration_ms = t->remaining_ms = (uint32_t)minutes * 60000;
+    t->finished = false;
+}
 #endif
