@@ -60,10 +60,23 @@ static void expect_page(int page) {
 }
 static void run_tests(void) {
     advance(100); expect_page(0);
-    const lv_font_t *timer_font = lv_obj_get_style_text_font(focus_digits, LV_PART_MAIN);
-    assert(timer_font && timer_font->line_height >= 75);
-    assert(lv_obj_get_y(focus_digits) < lv_obj_get_y(focus_caption));
+    const lv_font_t *timer_font = lv_obj_get_style_text_font(focus_minute_digits, LV_PART_MAIN);
+    assert(timer_font && timer_font->line_height >= 88);
+    assert(strcmp(lv_label_get_text(focus_state), "FOCUS") == 0);
+    assert(strcmp(lv_label_get_text(focus_minute_digits), "25") == 0);
+    assert(strcmp(lv_label_get_text(focus_second_digits), "00") == 0);
+    assert(strcmp(lv_label_get_text(focus_wheel_prev[0]), "24") == 0);
+    assert(strcmp(lv_label_get_text(focus_wheel_next[0]), "26") == 0);
+    assert(strcmp(lv_label_get_text(focus_wheel_prev[1]), "59") == 0);
+    assert(strcmp(lv_label_get_text(focus_wheel_next[1]), "01") == 0);
+    assert(lv_obj_get_y(focus_state) < lv_obj_get_y(focus_minute_digits));
+    assert(lv_obj_get_y(focus_minute_digits) < lv_obj_get_y(focus_caption));
     assert(lv_obj_get_y(focus_caption) < lv_obj_get_y(focus_control_hint));
+    focus_wheel_snap(0, 1);
+    advance(5);
+    assert(lv_obj_get_style_y(focus_minute_digits, LV_PART_MAIN) != 196);
+    advance(145);
+    assert(lv_obj_get_style_y(focus_minute_digits, LV_PART_MAIN) == 196);
     drag(300, 245, 240, 15); expect_page(0);
     drag(420, 40, 240, 25); expect_page(1);
     drag(300, 40, 240, 20); expect_page(1);
@@ -75,15 +88,16 @@ static void run_tests(void) {
     assert(page == 0 || page == 1); expect_page(page);
     focus_go_page(0, false); advance(100);
     focus_action(7);
-    drag_xy(160, 250, 160, 178, 10);
+    drag_xy(160, 340, 160, 268, 10); /* Instruction area is part of minute wheel. */
     assert(focus_timer.duration_ms >= 27u * 60000u && focus_timer.duration_ms <= 28u * 60000u);
     uint32_t after_minutes = focus_timer.duration_ms;
     advance(300);
     drag_xy(320, 250, 320, 202, 8);
     assert(focus_timer.duration_ms > after_minutes && focus_timer.duration_ms <= after_minutes + 2000u);
-    assert(lv_obj_has_flag(focus_wheel_prev, LV_OBJ_FLAG_HIDDEN));
+    assert(!lv_obj_has_flag(focus_wheel_prev[0], LV_OBJ_FLAG_HIDDEN));
     pointer(320, 230, true, 80); pointer(320, 230, false, 100);
     assert(focus_timer.running);
+    assert(strcmp(lv_label_get_text(focus_state), "FOCUSING") == 0);
     uint32_t running_duration = focus_timer.duration_ms;
     drag_xy(160, 250, 160, 202, 8); /* Editing is locked while running. */
     assert(focus_timer.duration_ms == running_duration);
@@ -112,8 +126,14 @@ static void run_tests(void) {
     expect_page(1);
     focus_go_page(0, false); advance(100);
     focus_action(7);
+    assert(strcmp(lv_label_get_text(focus_state), "FOCUS") == 0);
     assert(!focus_timer.running && focus_timer.remaining_ms == running_duration);
     focus_toggle(&focus_timer, sim_tick); advance(500);
+    focus_toggle(&focus_timer, sim_tick);
+    advance(100);
+    assert(strcmp(lv_label_get_text(focus_state), "PAUSED") == 0);
+    focus_toggle(&focus_timer, sim_tick);
+    advance(100);
     focus_action(8);
     assert(focus_timer.running && focus_timer.remaining_ms == running_duration);
     focus_action(9); assert(!lv_obj_has_flag(focus_preset_overlay, LV_OBJ_FLAG_HIDDEN));
@@ -124,7 +144,9 @@ static void run_tests(void) {
     focus_timer.running = true; focus_timer.last_ms = sim_tick;
     advance(200);
     assert(focus_timer.finished && !focus_timer.running);
-    assert(strcmp(lv_label_get_text(focus_digits), "00:00") == 0);
+    assert(strcmp(lv_label_get_text(focus_state), "REST") == 0);
+    assert(strcmp(lv_label_get_text(focus_minute_digits), "00") == 0);
+    assert(strcmp(lv_label_get_text(focus_second_digits), "00") == 0);
     puts("LVGL: snap, timer wheels, edit lock, stop/restart, presets, disconnect, six HID actions PASS");
 }
 static void screenshot(const char *path) {
