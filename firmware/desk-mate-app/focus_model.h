@@ -32,17 +32,27 @@ static inline void focus_reset(FocusTimer *t) {
     t->remaining_ms = t->duration_ms;
     t->running = t->finished = false;
 }
-static inline void focus_adjust(FocusTimer *t, int minutes) {
+static inline void focus_restart(FocusTimer *t, uint32_t now) {
+    bool was_running = t->running;
+    t->remaining_ms = t->duration_ms;
+    t->finished = false;
+    t->running = was_running;
+    t->last_ms = now;
+}
+static inline void focus_adjust_seconds(FocusTimer *t, int seconds) {
     if (t->running || t->remaining_ms != t->duration_ms) return;
-    int next = (int)(t->duration_ms / 60000) + minutes;
+    int next = (int)(t->duration_ms / 1000) + seconds;
     if (next < 1) next = 1;
-    if (next > 90) next = 90;
-    t->duration_ms = t->remaining_ms = (uint32_t)next * 60000;
+    if (next > 99 * 60 + 59) next = 99 * 60 + 59;
+    t->duration_ms = t->remaining_ms = (uint32_t)next * 1000;
+}
+static inline void focus_adjust(FocusTimer *t, int minutes) {
+    focus_adjust_seconds(t, minutes * 60);
 }
 static inline void focus_set_minutes(FocusTimer *t, int minutes) {
     if (t->running) return;
     if (minutes < 1) minutes = 1;
-    if (minutes > 90) minutes = 90;
+    if (minutes > 99) minutes = 99;
     t->duration_ms = t->remaining_ms = (uint32_t)minutes * 60000;
     t->finished = false;
 }

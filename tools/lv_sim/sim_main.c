@@ -46,6 +46,12 @@ static void drag(int x0, int x1, int y, int steps) {
     pointer(x1, y, true, 160);
     pointer(x1, y, false, 1200);
 }
+static void drag_xy(int x0, int y0, int x1, int y1, int steps) {
+    pointer(x0, y0, true, 40);
+    for (int i = 1; i <= steps; ++i)
+        pointer(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps, true, 20);
+    pointer(x1, y1, false, 400);
+}
 static void expect_page(int page) {
     int x = lv_obj_get_scroll_x(focus_pager);
     if (x != page * 480) fprintf(stderr, "Expected page %d at %d, got %d\n", page, page * 480, x);
@@ -59,13 +65,24 @@ static void run_tests(void) {
     drag(300, 40, 240, 20); expect_page(1);
     drag(40, 420, 240, 25); expect_page(0);
     drag(100, 380, 240, 20); expect_page(0);
-    drag(242, 8, 368, 12); /* Swiping Play must not activate it. */
+    drag(330, 30, 230, 16); /* Swiping over the timer must not activate it. */
     assert(!focus_timer.running);
     int page = lv_obj_get_scroll_x(focus_pager) / 480;
     assert(page == 0 || page == 1); expect_page(page);
     focus_go_page(0, false); advance(100);
-    pointer(240, 368, true, 80); pointer(240, 368, false, 100);
+    focus_action(7);
+    drag_xy(160, 250, 160, 178, 10);
+    assert(focus_timer.duration_ms >= 27u * 60000u && focus_timer.duration_ms <= 28u * 60000u);
+    uint32_t after_minutes = focus_timer.duration_ms;
+    advance(300);
+    drag_xy(320, 250, 320, 202, 8);
+    assert(focus_timer.duration_ms > after_minutes && focus_timer.duration_ms <= after_minutes + 2000u);
+    assert(lv_obj_has_flag(focus_wheel_prev, LV_OBJ_FLAG_HIDDEN));
+    pointer(320, 230, true, 80); pointer(320, 230, false, 100);
     assert(focus_timer.running);
+    uint32_t running_duration = focus_timer.duration_ms;
+    drag_xy(160, 250, 160, 202, 8); /* Editing is locked while running. */
+    assert(focus_timer.duration_ms == running_duration);
     advance(1000);
     assert(focus_timer.remaining_ms < focus_timer.duration_ms);
     focus_go_page(1, true); advance(1200); expect_page(1);
@@ -90,17 +107,21 @@ static void run_tests(void) {
     pointer(170, 240, true, 40); pointer(90, 240, false, 1400);
     expect_page(1);
     focus_go_page(0, false); advance(100);
-    focus_reset(&focus_timer);
-    pointer(388, 368, true, 2500); pointer(388, 368, false, 100);
-    assert(focus_timer.duration_ms >= 35u * 60000u); /* accelerated hold */
-    pointer(240, 447, true, 80); pointer(240, 447, false, 100);
-    assert(focus_timer.duration_ms == 15u * 60000u); /* direct preset */
+    focus_action(7);
+    assert(!focus_timer.running && focus_timer.remaining_ms == running_duration);
+    focus_toggle(&focus_timer, sim_tick); advance(500);
+    focus_action(8);
+    assert(focus_timer.running && focus_timer.remaining_ms == running_duration);
+    focus_action(9); assert(!lv_obj_has_flag(focus_preset_overlay, LV_OBJ_FLAG_HIDDEN));
+    focus_action(10); focus_action(11);
+    assert(focus_timer.duration_ms == 15u * 60000u && !focus_timer.running);
+    assert(lv_obj_has_flag(focus_preset_overlay, LV_OBJ_FLAG_HIDDEN));
     focus_reset(&focus_timer); focus_timer.remaining_ms = 50;
     focus_timer.running = true; focus_timer.last_ms = sim_tick;
     advance(200);
     assert(focus_timer.finished && !focus_timer.running);
     assert(strcmp(lv_label_get_text(focus_digits), "00:00") == 0);
-    puts("LVGL: snap, edges, interrupted animation, flick, drag-on-button, timer, disconnect, six HID actions PASS");
+    puts("LVGL: snap, timer wheels, edit lock, stop/restart, presets, disconnect, six HID actions PASS");
 }
 static void screenshot(const char *path) {
 #if LVGL_VERSION_MAJOR >= 9

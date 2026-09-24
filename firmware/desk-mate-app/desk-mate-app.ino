@@ -32,6 +32,8 @@ struct ButtonState {
   uint8_t pin;
   bool raw = false, stable = false, held = false;
   uint32_t changed_at = 0, pressed_at = 0, repeat_at = 0;
+  int active_short = 0, active_hold = 0;
+  bool timer_key = false;
 };
 static ButtonState boot_button{9}, key_button{10};
 
@@ -41,20 +43,26 @@ static void poll_button(ButtonState &b, int short_action, int hold_action) {
   if (down != b.raw) { b.raw = down; b.changed_at = now; }
   if (b.raw != b.stable && now - b.changed_at >= 30) {
     b.stable = b.raw;
-    if (b.stable) { b.pressed_at = now; b.repeat_at = now + 500; b.held = false; }
-    else if (!b.held) { Serial.printf("BUTTON %u tap\n", b.pin); focus_action(short_action); }
+    if (b.stable) {
+      b.pressed_at = now; b.repeat_at = now + 1400; b.held = false;
+      b.timer_key = focus_page == 0 && b.pin == 10;
+      b.active_short = focus_page == 0 ? (b.pin == 9 ? 7 : 8) : short_action;
+      b.active_hold = focus_page == 0 ? (b.pin == 9 ? 7 : 9) : hold_action;
+    } else if (!b.held) {
+      Serial.printf("BUTTON %u tap action=%d\n", b.pin, b.active_short);
+      focus_action(b.active_short);
+    } else if (b.timer_key) {
+      Serial.println("BUTTON KEY preset commit");
+      focus_action(11);
+    }
   }
-  if (b.stable && focus_page == 0 && (short_action == -1 || short_action == 1) &&
-      (int32_t)(now - b.repeat_at) >= 0) {
-    uint32_t held_ms = now - b.pressed_at;
-    uint32_t interval = held_ms >= 2500 ? 70 : held_ms >= 1200 ? 120 : 200;
+  if (b.stable && !b.held && now - b.pressed_at >= 700) {
     b.held = true;
-    b.repeat_at = now + interval;
-    focus_action(short_action);
-  } else if (b.stable && focus_page != 0 && !b.held && now - b.pressed_at >= 700) {
-    b.held = true;
-    Serial.printf("BUTTON %u hold\n", b.pin);
-    focus_action(hold_action);
+    Serial.printf("BUTTON %u hold action=%d\n", b.pin, b.active_hold);
+    focus_action(b.active_hold);
+  } else if (b.stable && b.held && b.timer_key && (int32_t)(now - b.repeat_at) >= 0) {
+    b.repeat_at = now + 700;
+    focus_action(10);
   }
 }
 
