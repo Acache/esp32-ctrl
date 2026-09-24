@@ -60,6 +60,10 @@ static void expect_page(int page) {
 }
 static void run_tests(void) {
     advance(100); expect_page(0);
+    const lv_font_t *timer_font = lv_obj_get_style_text_font(focus_digits, LV_PART_MAIN);
+    assert(timer_font && timer_font->line_height >= 75);
+    assert(lv_obj_get_y(focus_digits) < lv_obj_get_y(focus_caption));
+    assert(lv_obj_get_y(focus_caption) < lv_obj_get_y(focus_control_hint));
     drag(300, 245, 240, 15); expect_page(0);
     drag(420, 40, 240, 25); expect_page(1);
     drag(300, 40, 240, 20); expect_page(1);

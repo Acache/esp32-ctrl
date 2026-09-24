@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-LV_FONT_DECLARE(focus_font_68);
+LV_FONT_DECLARE(focus_font_104);
 
 typedef bool (*FocusSendMedia)(uint16_t usage);
 typedef int (*FocusReadBattery)(void);
@@ -198,7 +198,7 @@ static void focus_refresh(void) {
         lv_label_set_text(focus_digits, digits);
         lv_label_set_text(focus_caption, focus_timer.finished ? "SESSION COMPLETE" :
             focus_timer.running ? "ONE THING AT A TIME" :
-            focus_timer.remaining_ms != focus_timer.duration_ms ? "PAUSED" : "ROLL MINUTES  /  SECONDS");
+            focus_timer.remaining_ms != focus_timer.duration_ms ? "PWR TO RESUME" : "ROLL MINUTES  /  SECONDS");
         focus_last_seconds = seconds; focus_last_running = focus_timer.running;
         focus_last_finished = focus_timer.finished;
         int progress = focus_timer.duration_ms ?
@@ -247,18 +247,18 @@ static void focus_ui_build(lv_obj_t *screen, FocusSendMedia send_media, FocusRea
     }
     lv_obj_t *p = focus_pages[0];
     focus_arcs[0] = focus_arc(p, 32, 48, 416, 6, true);
-    focus_label(p, "F O C U S", 91, &lv_font_montserrat_20, FOCUS_AMBER);
-    focus_caption = focus_label(p, "", 137, &lv_font_montserrat_14, FOCUS_MUTED);
-    focus_digits = focus_label(p, "25:00", 194, &focus_font_68, FOCUS_INK);
-    lv_obj_set_style_text_letter_space(focus_digits, 3, 0);
-    focus_wheel_prev = focus_label(p, "24", 160, &lv_font_montserrat_24, FOCUS_MUTED);
-    focus_wheel_next = focus_label(p, "26", 304, &lv_font_montserrat_24, FOCUS_MUTED);
+    focus_label(p, "F O C U S", 78, &lv_font_montserrat_24, FOCUS_AMBER);
+    focus_digits = focus_label(p, "25:00", 151, &focus_font_104, FOCUS_INK);
+    lv_obj_set_style_text_letter_space(focus_digits, 2, 0);
+    focus_caption = focus_label(p, "", 284, &lv_font_montserrat_16, FOCUS_MUTED);
+    focus_wheel_prev = focus_label(p, "24", 116, &lv_font_montserrat_24, FOCUS_MUTED);
+    focus_wheel_next = focus_label(p, "26", 307, &lv_font_montserrat_24, FOCUS_MUTED);
     lv_obj_set_width(focus_wheel_prev, 94); lv_obj_set_width(focus_wheel_next, 94);
     lv_obj_set_style_text_opa(focus_wheel_prev, LV_OPA_40, 0); lv_obj_set_style_text_opa(focus_wheel_next, LV_OPA_40, 0);
     lv_obj_add_flag(focus_wheel_prev, LV_OBJ_FLAG_HIDDEN); lv_obj_add_flag(focus_wheel_next, LV_OBJ_FLAG_HIDDEN);
-    focus_control_hint = focus_label(p, "PWR START  /  BOOT STOP  /  KEY RESET", 397, &lv_font_montserrat_14, FOCUS_MUTED);
-    lv_obj_t *minute_zone = focus_object(p, 72, 155, 166, 185);
-    lv_obj_t *second_zone = focus_object(p, 242, 155, 166, 185);
+    focus_control_hint = focus_label(p, "PWR START  /  BOOT STOP  /  KEY RESET", 373, &lv_font_montserrat_14, FOCUS_MUTED);
+    lv_obj_t *minute_zone = focus_object(p, 58, 130, 182, 210);
+    lv_obj_t *second_zone = focus_object(p, 240, 130, 182, 210);
     lv_obj_add_flag(minute_zone, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_add_flag(second_zone, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_add_event_cb(minute_zone, focus_wheel_event, LV_EVENT_ALL, (void *)(intptr_t)0);
