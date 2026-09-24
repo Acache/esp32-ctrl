@@ -110,15 +110,15 @@ static void focus_snap_object(lv_obj_t *obj, int from_y, int to_y) {
 }
 static void focus_wheel_snap(int field, int direction) {
     int offset = direction > 0 ? 12 : -12;
-    focus_snap_object(focus_wheel_prev[field], 137 + offset, 137);
+    focus_snap_object(focus_wheel_prev[field], 125 + offset, 125);
     focus_snap_object(field == 0 ? focus_minute_digits : focus_second_digits, 196 + offset, 196);
-    focus_snap_object(focus_wheel_next[field], 307 + offset, 307);
+    focus_snap_object(focus_wheel_next[field], 295 + offset, 295);
 }
 static void focus_wheel_hide(void) {
     focus_wheel_field = -1;
     for (int i = 0; i < 2; ++i) {
-        lv_obj_set_style_text_opa(focus_wheel_prev[i], LV_OPA_50, 0);
-        lv_obj_set_style_text_opa(focus_wheel_next[i], LV_OPA_50, 0);
+        lv_obj_set_style_text_opa(focus_wheel_prev[i], LV_OPA_40, 0);
+        lv_obj_set_style_text_opa(focus_wheel_next[i], LV_OPA_40, 0);
     }
 }
 static void focus_wheel_render(void) {
@@ -133,7 +133,7 @@ static void focus_wheel_render(void) {
         lv_label_set_text(focus_wheel_prev[i], text);
         snprintf(text, sizeof(text), "%02d", (values[i] + 1) % limits[i]);
         lv_label_set_text(focus_wheel_next[i], text);
-        lv_opa_t opacity = focus_wheel_field == i ? LV_OPA_80 : LV_OPA_50;
+        lv_opa_t opacity = focus_wheel_field == i ? LV_OPA_70 : LV_OPA_40;
         lv_obj_set_style_text_opa(focus_wheel_prev[i], opacity, 0);
         lv_obj_set_style_text_opa(focus_wheel_next[i], opacity, 0);
     }
@@ -280,13 +280,13 @@ static void focus_ui_build(lv_obj_t *screen, FocusSendMedia send_media, FocusRea
     lv_obj_set_width(focus_second_digits, 164); lv_obj_set_x(focus_second_digits, 261);
     focus_caption = focus_label(p, "", 348, &lv_font_montserrat_16, FOCUS_MUTED);
     for (int i = 0; i < 2; ++i) {
-        int x = i == 0 ? 87 : 293;
-        focus_wheel_prev[i] = focus_label(p, "00", 137, &lv_font_montserrat_24, FOCUS_MUTED);
-        focus_wheel_next[i] = focus_label(p, "00", 307, &lv_font_montserrat_24, FOCUS_MUTED);
-        lv_obj_set_width(focus_wheel_prev[i], 100); lv_obj_set_x(focus_wheel_prev[i], x);
-        lv_obj_set_width(focus_wheel_next[i], 100); lv_obj_set_x(focus_wheel_next[i], x);
-        lv_obj_set_style_text_opa(focus_wheel_prev[i], LV_OPA_50, 0);
-        lv_obj_set_style_text_opa(focus_wheel_next[i], LV_OPA_50, 0);
+        int x = i == 0 ? 72 : 278;
+        focus_wheel_prev[i] = focus_label(p, "00", 125, &lv_font_montserrat_48, FOCUS_MUTED);
+        focus_wheel_next[i] = focus_label(p, "00", 295, &lv_font_montserrat_48, FOCUS_MUTED);
+        lv_obj_set_width(focus_wheel_prev[i], 130); lv_obj_set_x(focus_wheel_prev[i], x);
+        lv_obj_set_width(focus_wheel_next[i], 130); lv_obj_set_x(focus_wheel_next[i], x);
+        lv_obj_set_style_text_opa(focus_wheel_prev[i], LV_OPA_40, 0);
+        lv_obj_set_style_text_opa(focus_wheel_next[i], LV_OPA_40, 0);
     }
     focus_control_hint = focus_label(p, "PWR START  /  BOOT STOP  /  KEY RESET", 398, &lv_font_montserrat_14, FOCUS_MUTED);
     lv_obj_t *minute_zone = focus_object(p, 34, 105, 206, 283);

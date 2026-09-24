@@ -69,6 +69,8 @@ static void run_tests(void) {
     assert(strcmp(lv_label_get_text(focus_wheel_next[0]), "26") == 0);
     assert(strcmp(lv_label_get_text(focus_wheel_prev[1]), "59") == 0);
     assert(strcmp(lv_label_get_text(focus_wheel_next[1]), "01") == 0);
+    const lv_font_t *shadow_font = lv_obj_get_style_text_font(focus_wheel_prev[0], LV_PART_MAIN);
+    assert(shadow_font && shadow_font->line_height >= 45);
     assert(lv_obj_get_y(focus_state) < lv_obj_get_y(focus_minute_digits));
     assert(lv_obj_get_y(focus_minute_digits) < lv_obj_get_y(focus_caption));
     assert(lv_obj_get_y(focus_caption) < lv_obj_get_y(focus_control_hint));
