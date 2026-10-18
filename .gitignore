@@ -1,0 +1,43 @@
+# Local toolchains and generated artifacts
+.venv/
+build/
+release/
+.pytest_cache/
+**/__pycache__/
+*.py[cod]
+.DS_Store
+*.log
+
+# Runtime/private material (never commit)
+private/
+.learnings/
+chat_log.md
+tmp_half_done.md
+*.db
+*.db-wal
+*.db-shm
+*.pem
+*.key
+*.crt
+*.p12
+*.wav
+*.aiff
+
+# Editor/OS
+.vscode/
+.idea/
+
+# Third-party Arduino libraries (install via arduino-cli)
+firmware/libraries/
+
+# Vendored assets not shipped in this repo
+firmware/desk-mate-app/font_cn_*.c
+firmware/desk-mate-app/font_tnr_*.c
+firmware/desk-mate-app/einstein_*
+firmware/desk-mate-app/ui_pages.h*
+firmware/desk-mate-app/jokes.h
+firmware/desk-mate-app/*.bak
+firmware/desk-mate-app/*.oldbak
+
+# Compiled helper binary (build from mac/scripts/ax_helper.swift)
+mac/bin/
