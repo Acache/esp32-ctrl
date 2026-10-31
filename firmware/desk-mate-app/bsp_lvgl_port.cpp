@@ -174,11 +174,13 @@ void bsp_lvgl_init(I2cMasterBus &i2cbus) {
   ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
   /*LVGL INIT*/
   lv_init();
-  lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(BSP_LCD_H_RES * 50 * sizeof(lv_color_t), MALLOC_CAP_DMA);
-  lv_color_t *buf2 = (lv_color_t *)heap_caps_malloc(BSP_LCD_H_RES * 50 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+  /* Two 20-line buffers keep double buffering and DMA completion semantics
+   * while freeing ~57 KiB for the C6 voice/TLS workload. */
+  lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(BSP_LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+  lv_color_t *buf2 = (lv_color_t *)heap_caps_malloc(BSP_LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
   assert(buf1);
   assert(buf2);
-  lv_disp_draw_buf_init(&draw_buf, buf1, buf2, BSP_LCD_H_RES * 50);
+  lv_disp_draw_buf_init(&draw_buf, buf1, buf2, BSP_LCD_H_RES * 10);
 
   lv_disp_drv_init(&disp_drv);
   disp_drv.hor_res = BSP_LCD_H_RES;

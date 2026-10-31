@@ -13,6 +13,8 @@ static uint16_t last_media;
 static uint32_t test_clock(void) { return sim_tick; }
 static bool sim_media(uint16_t u) { ++media_count; last_media = u; return true; }
 static int sim_battery(void) { return 85; }
+static FocusBiliStatus sim_bili;
+static void sim_read_bili(FocusBiliStatus *out) { *out = sim_bili; }
 #if LVGL_VERSION_MAJOR >= 9
 static void flush(lv_display_t *d, const lv_area_t *a, uint8_t *p) {
     (void)a; (void)p; lv_display_flush_ready(d);
@@ -81,13 +83,36 @@ static void run_tests(void) {
     assert(lv_obj_get_style_y(focus_minute_digits, LV_PART_MAIN) == 196);
     drag(300, 245, 240, 15); expect_page(0);
     drag(420, 40, 240, 25); expect_page(1);
-    drag(300, 40, 240, 20); expect_page(1);
-    drag(40, 420, 240, 25); expect_page(0);
+    /* Three-page requirement supersedes the old two-page endstop: the
+     * second left swipe is now valid page 2, not a clamped page 1. */
+    drag(300, 40, 240, 20); expect_page(2);
+    drag(40, 420, 240, 25); expect_page(1);
     drag(100, 380, 240, 20); expect_page(0);
     drag(330, 30, 230, 16); /* Swiping over the timer must not activate it. */
     assert(!focus_timer.running);
     int page = lv_obj_get_scroll_x(focus_pager) / 480;
-    assert(page == 0 || page == 1); expect_page(page);
+    assert(page >= 0 && page <= 2); expect_page(page);
+    focus_go_page(2, true); advance(1200); expect_page(2);
+    sim_bili = (FocusBiliStatus){};
+    sim_bili.state = 2; sim_bili.ready = true;
+    snprintf(sim_bili.transport, sizeof(sim_bili.transport), "READY");
+    focus_bili_refresh();
+    assert(strcmp(lv_label_get_text(focus_bili_state), "READY") == 0);
+    assert(strcmp(lv_label_get_text(focus_bili_timer), "TALK") == 0);
+    assert(lv_obj_get_style_text_font(focus_bili_timer, LV_PART_MAIN)->line_height < 80);
+    sim_bili.state = 4; sim_bili.recording_ms = 1234;
+    focus_bili_refresh();
+    assert(strcmp(lv_label_get_text(focus_bili_timer), "01.2") == 0);
+    assert(lv_obj_get_style_text_font(focus_bili_timer, LV_PART_MAIN)->line_height < 80);
+    sim_bili.state = 9; sim_bili.result = 1;
+    snprintf(sim_bili.summary, sizeof(sim_bili.summary), "完成");
+    focus_bili_refresh();
+    assert(strcmp(lv_label_get_text(focus_bili_state), "DONE") == 0);
+    sim_bili.result = 3;
+    snprintf(sim_bili.summary, sizeof(sim_bili.summary), "没有可用的播放器状态，请先播放视频");
+    focus_bili_refresh();
+    assert(strcmp(lv_label_get_text(focus_bili_result), "NO PLAYER / PLAY A VIDEO") == 0);
+    focus_go_page(0, false); advance(100); expect_page(0);
     focus_go_page(0, false); advance(100);
     focus_action(7);
     drag_xy(160, 340, 160, 268, 10); /* Instruction area is part of minute wheel. */
@@ -174,6 +199,92 @@ static void screenshot(const char *path) {
 #endif
     printf("Screenshot: %s\n", path);
 }
+
+static int fb_count;
+static char fb_last_rating[24];
+static char fb_last_cmd[40];
+static void sim_feedback(const char *command_id, const char *rating,
+                         const char *dismissed_by, int touch_count, int countdown) {
+    (void)dismissed_by; (void)touch_count; (void)countdown;
+    fb_count++;
+    snprintf(fb_last_rating, sizeof(fb_last_rating), "%s", rating);
+    snprintf(fb_last_cmd, sizeof(fb_last_cmd), "%s", command_id);
+}
+
+static void feedback_tests(void) {
+    puts("feedback: overlay state-machine tests start");
+    focus_ui_set_feedback_sink(sim_feedback);
+    focus_go_page(PAGE_BILI, false); advance(200);
+    focus_feedback_show("11111111-1111-4111-8111-111111111111");
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    assert(strcmp(lv_label_get_text(focus_feedback_count), "5s") == 0);
+    lv_obj_send_event(focus_feedback_overlay, LV_EVENT_PRESSED, NULL);
+    advance(3000);
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_send_event(focus_feedback_overlay, LV_EVENT_RELEASED, NULL);
+    advance(1000);
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    advance(5000);
+    assert(lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    assert(strcmp(fb_last_rating, "unfeedback") == 0);
+    assert(fb_count == 1);
+
+    focus_feedback_show("22222222-2222-4222-8222-222222222222");
+    focus_feedback_select(true);
+    assert(strcmp(fb_last_rating, "good") == 0);
+    advance(2100);
+    assert(lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    assert(fb_count == 2);
+    /* Even after GOOD/BAD, a 30 s review badge remains. */
+    assert(!lv_obj_has_flag(focus_feedback_badge, LV_OBJ_FLAG_HIDDEN));
+
+    focus_feedback_show("33333333-3333-4333-8333-333333333333");
+    focus_feedback_hide("unfeedback", "next_ptt");
+    assert(lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    assert(!lv_obj_has_flag(focus_feedback_badge, LV_OBJ_FLAG_HIDDEN));
+    assert(fb_count == 3);
+    lv_obj_send_event(focus_feedback_badge, LV_EVENT_CLICKED, NULL);
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    focus_feedback_hide("unfeedback", "timeout");
+    assert(fb_count == 4);
+
+    focus_feedback_show("33333333-3333-4333-8333-333333333333");
+    for (int i = 0; i < 3; ++i) {
+        lv_obj_send_event(focus_feedback_overlay, LV_EVENT_PRESSED, NULL);
+        lv_obj_send_event(focus_feedback_overlay, LV_EVENT_RELEASED, NULL);
+    }
+    /* The fourth touch must not reset the countdown. */
+    lv_obj_send_event(focus_feedback_overlay, LV_EVENT_PRESSED, NULL);
+    lv_obj_send_event(focus_feedback_overlay, LV_EVENT_RELEASED, NULL);
+    advance(6000);
+    assert(lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    /* RESULT (9) decaying to READY (2) must NOT close the 5 s overlay. */
+    sim_bili.state = 9; sim_bili.result = 1;
+    snprintf(sim_bili.command_id, sizeof(sim_bili.command_id), "%s",
+             "55555555-5555-4555-8555-555555555555");
+    focus_refresh();
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    sim_bili.state = 2; focus_refresh();
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    /* FAILED also opens the feedback window. */
+    sim_bili.state = 9; sim_bili.result = 3;
+    snprintf(sim_bili.command_id, sizeof(sim_bili.command_id), "%s",
+             "77777777-7777-4777-8777-777777777777");
+    focus_refresh();
+    assert(!lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    /* A genuinely new command ID closes the old feedback and badge. */
+    snprintf(sim_bili.command_id, sizeof(sim_bili.command_id), "%s",
+             "66666666-6666-4666-8666-666666666666");
+    sim_bili.state = 3; focus_refresh();
+    assert(lv_obj_has_flag(focus_feedback_overlay, LV_OBJ_FLAG_HIDDEN));
+    focus_feedback_hide("unfeedback", "timeout");
+    focus_feedback_hide("unfeedback", "timeout");
+    sim_bili = (FocusBiliStatus){};
+    lv_obj_scroll_to_x(focus_pager, 0, LV_ANIM_OFF);
+    focus_page = PAGE_FOCUS;
+    advance(200);
+    puts("feedback: overlay state-machine tests PASS");
+}
 int main(int argc, char **argv) {
     bool test = argc > 1 && strcmp(argv[1], "--test") == 0;
     bool capture = argc > 1 && strcmp(argv[1], "--screenshot") == 0;
@@ -208,6 +319,7 @@ int main(int argc, char **argv) {
     lv_indev_drv_register(&input);
 #endif
     focus_ui_build(lv_screen_active(), sim_media, sim_battery);
+    focus_ui_set_bili_source(sim_read_bili);
 #if LVGL_VERSION_MAJOR < 9
     lv_mem_monitor_t memory;
     lv_mem_monitor(&memory);
@@ -215,13 +327,17 @@ int main(int argc, char **argv) {
     assert(memory.total_size - memory.free_size < 48u * 1024u);
 #endif
     assert(strcmp(lv_label_get_text(focus_battery), "85%") == 0);
-    if (test) { run_tests(); return 0; }
+    if (test) { run_tests(); feedback_tests(); return 0; }
     if (capture) {
         int page = argc > 2 ? atoi(argv[2]) : 0;
         if (argc > 4 && strcmp(argv[4], "connected") == 0) {
             focus_set_connected(true); focus_toggle(&focus_timer, sim_tick); advance(1000);
         }
         focus_go_page(page, false); advance(300);
+        if (page == PAGE_BILI) {
+            focus_feedback_show("44444444-4444-4444-8444-444444444444");
+            advance(100);
+        }
         screenshot(argc > 3 ? argv[3] : "/private/tmp/deskmate.bmp");
         return 0;
     }

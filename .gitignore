@@ -1,18 +1,47 @@
-# 嵌套 git 仓库（外部引用）
+# ---- 第三方 / 本地引用（不入库）----
 _lv_sim/
 _waveshare_examples/
 simulator/lv_port_pc_vscode/
+firmware/libraries/
+.venv/
 
-# 构建产物
+# ---- 构建产物 ----
+build/
+release/
+cmake-build-*/
 *.o
 *.d
-build/
-cmake-build-*/
+*.raw
 
-# macOS
+# ---- Python ----
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# ---- 运行时 / 私有（绝不入库）----
+private/
+chat_log.md
+tmp_half_done.md
+*.db
+*.db-wal
+*.db-shm
+*.pem
+*.key
+*.crt
+*.p12
+*.wav
+*.aiff
+*.log
+
+# ---- 工具产物 ----
+mac/bin/
+.playwright-cli/
+.tmp/
+.vscode/
+.idea/
+
+# ---- 备份 / 系统 ----
+*.bak
+*.oldbak
 .DS_Store
-
-# 图片资源（太大）
-*.png
-*.jpg
-*.bmp
