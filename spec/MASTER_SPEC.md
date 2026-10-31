@@ -1,4 +1,4 @@
-# MASTER_SPEC — esp32-ctrl 语音助手系统规格
+# MASTER_SPEC — Desk-Mate 语音助手系统规格
 
 > **重建说明（2026-10-25）**：本文件原稿（38KB）写于 `$WORKSPACE_DIR/` 临时目录，未落盘到项目，**已丢失**。
 > 本版由**现有代码反推重建**（`mac/src/voice_assistant/` + `firmware/desk-mate-app/` + `README.md`），

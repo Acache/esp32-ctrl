@@ -1,8 +1,8 @@
-# esp32-ctrl
+# Desk-Mate
 
 > Turn an ESP32 touchscreen into a physical control surface for your Mac — and, eventually, Windows.
 
-`esp32-ctrl` is a firmware + host-service project. A small ESP32 with a 480×480 AMOLED
+`Desk-Mate` is a firmware + host-service project. A small ESP32 with a 480×480 AMOLED
 touchscreen sits on your desk and acts as a **hardware entry point** for controlling the
 computer: start a focus timer, drive media playback over Bluetooth HID, or hold a button and
 *speak* a command that the host executes against real applications.
@@ -15,7 +15,7 @@ deliberately application-agnostic so it can grow into a general desktop-control 
 ## Why
 
 Keyboard shortcuts are fast but blind. Phone apps are flexible but require picking up a phone.
-`esp32-ctrl` explores a third option: **a dedicated, always-visible physical surface** with
+`Desk-Mate` explores a third option: **a dedicated, always-visible physical surface** with
 direct manipulation for what is frequent (timer, play/pause, volume) and push-to-talk for what
 is variable (search, open, navigate).
 
@@ -115,8 +115,8 @@ hardware to work on the host service, and you do not need the host service to wo
 For developing intent handling, protocol, and tests.
 
 ```bash
-git clone https://github.com/Acache/esp32-ctrl.git
-cd esp32-ctrl
+git clone https://github.com/Acache/desk-mate.git
+cd desk-mate
 
 ./bootstrap.sh     # creates .venv, installs mac/requirements.lock, runs `setup`
 ./run.sh           # TLS WSS on :8765 (foreground)
